@@ -8,3 +8,4 @@ imports_granularity = "crate"
 max_width = 110
 wrap_comments=false
 use_field_init_shorthand = true
+chain_width = 50
