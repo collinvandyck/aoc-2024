@@ -6,7 +6,7 @@ fn main() {
 }
 
 fn run(s: &str, pt1: bool) -> usize {
-    let (mut v1, mut v2) = s
+    let (mut v1, mut v2): (Vec<_>, Vec<_>) = s
         .trim()
         .lines()
         .map(|s| {
@@ -16,11 +16,7 @@ fn run(s: &str, pt1: bool) -> usize {
                 .collect::<Vec<_>>();
             (ps[0], ps[1])
         })
-        .fold((vec![], vec![]), |mut acc, ns| {
-            acc.0.push(ns.0);
-            acc.1.push(ns.1);
-            acc
-        });
+        .unzip();
     v1.sort();
     v2.sort();
     if pt1 {
