@@ -31,11 +31,8 @@ fn is_valid<'a>(iter: impl IntoIterator<Item = &'a i64> + Clone) -> bool {
         .into_iter()
         .zip(iter.into_iter().skip(1))
         .map(|t| t.1 - t.0)
-        .fold((true, true, true), |(pos, neg, dst), n| {
-            let pos = pos && n > 0;
-            let neg = neg && n < 0;
-            let dst = dst && (1..=3).contains(&n.abs());
-            (pos, neg, dst)
+        .fold((true, true, true), |a, n| {
+            (a.0 && n > 0, a.1 && n < 0, a.2 && (1..=3).contains(&n.abs()))
         });
     (pos || neg) && dst
 }
