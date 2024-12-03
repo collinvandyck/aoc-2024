@@ -35,10 +35,8 @@ fn eval(s: &str, pt1: bool) -> isize {
             })
         })
         .fold((0, true), |(res, ok), op| match op {
-            Op::Do(true) => (res, true),
-            Op::Do(false) => (res, false),
-            Op::Add(v) if ok => (res + v, ok),
-            _ => (res, ok),
+            Op::Do(v) => (res, v),
+            Op::Add(v) => (res + if ok { v } else { 0 }, ok),
         })
         .0
 }
