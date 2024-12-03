@@ -20,7 +20,7 @@ enum Op {
     Nop,
 }
 
-fn eval_nom(mut s: &str, pt1: bool) -> i64 {
+fn eval_nom(s: &str, pt1: bool) -> i64 {
     fn parse_mul(s: &str) -> IResult<&str, Op> {
         let (s, _) = tag("mul")(s)?;
         let (s, (d1, d2)) = delimited(tag("("), separated_pair(ci64, tag(","), ci64), tag(")"))(s)?;
@@ -34,21 +34,15 @@ fn eval_nom(mut s: &str, pt1: bool) -> i64 {
             take(1_usize).map(|_| Op::Nop),
         ))(s)
     }
-    let (mut res, mut ok) = (0, true);
-    while !s.is_empty() {
-        match parse(s) {
-            Ok((rst, op)) => {
-                match op {
-                    Op::Do(v) => ok = pt1 || v,
-                    Op::Add(v) => res += if ok { v } else { 0 },
-                    _ => {}
-                }
-                s = rst;
+    nom::combinator::iterator(s, parse)
+        .fold((0, true), |(sum, ok), op| {
+            match op {
+                Op::Do(v) => (sum, v),
+                Op::Add(v) => (sum + if pt1 || ok { v } else { 0 }, ok),
+                Op::Nop => (sum, ok),
             }
-            _ => break,
-        }
-    }
-    res
+        })
+        .0
 }
 
 #[cfg(test)]
