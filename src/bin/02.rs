@@ -1,6 +1,3 @@
-#![feature(test)]
-extern crate test;
-
 fn main() {
     println!("pt1: {}", is_safe(include_str!("../../data/02/in1"), true));
     println!("pt2: {}", is_safe(include_str!("../../data/02/in1"), false));
@@ -43,22 +40,6 @@ fn is_valid<'a>(iter: impl IntoIterator<Item = &'a i64> + Clone) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[bench]
-    pub fn bench_pt1(b: &mut test::Bencher) {
-        let in1 = include_str!("../../data/02/in1");
-        b.iter(|| {
-            let _ = is_safe(in1, true);
-        });
-    }
-
-    #[bench]
-    pub fn bench_pt2(b: &mut test::Bencher) {
-        let in1 = include_str!("../../data/02/in1");
-        b.iter(|| {
-            let _ = is_safe(in1, false);
-        });
-    }
 
     #[test]
     fn pt1() {
