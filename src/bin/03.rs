@@ -1,8 +1,10 @@
+use aoc_2024 as aoc;
 use regex::Regex;
 
 fn main() {
-    println!("pt1: {}", eval(include_str!("../../data/03/in1"), true));
-    println!("pt2: {}", eval(include_str!("../../data/03/in1"), false));
+    let in1 = include_str!("../../data/03/in1");
+    println!("pt1: {}", aoc::timed(|| eval(in1, true)));
+    println!("pt2: {}", aoc::timed(|| eval(in1, false)));
 }
 
 enum Op {
