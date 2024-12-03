@@ -23,20 +23,26 @@ fn eval(s: &str, pt1: bool) -> isize {
     s.trim()
         .lines()
         .flat_map(|line| {
-            re.captures_iter(line).map(|cap| match &cap[0] {
-                "do()" => Op::Do(true),
-                "don't()" => Op::Do(false),
-                cap => Op::Add(
-                    cap[4..cap.len() - 1]
-                        .split(",")
-                        .map(|s| s.parse::<isize>().unwrap())
-                        .product(),
-                ),
+            re.captures_iter(line).map(|cap| {
+                match &cap[0] {
+                    "do()" => Op::Do(true),
+                    "don't()" => Op::Do(false),
+                    cap => {
+                        Op::Add(
+                            cap[4..cap.len() - 1]
+                                .split(",")
+                                .map(|s| s.parse::<isize>().unwrap())
+                                .product(),
+                        )
+                    }
+                }
             })
         })
-        .fold((0, true), |(res, ok), op| match op {
-            Op::Do(v) => (res, v),
-            Op::Add(v) => (res + if ok { v } else { 0 }, ok),
+        .fold((0, true), |(res, ok), op| {
+            match op {
+                Op::Do(v) => (res, v),
+                Op::Add(v) => (res + if ok { v } else { 0 }, ok),
+            }
         })
         .0
 }
