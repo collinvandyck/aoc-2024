@@ -1,6 +1,6 @@
 use aoc_2024 as aoc;
 use nom::{
-    IResult,
+    IResult, Parser,
     branch::alt,
     bytes::complete::{tag, take},
     character::complete::digit1,
@@ -22,23 +22,22 @@ enum Op {
 }
 
 fn eval_nom(mut s: &str, pt1: bool) -> isize {
-    fn tag_do(s: &str) -> IResult<&str, Op> {
-        tag("do()")(s).map(|(rst, _)| (rst, Op::Do(true)))
-    }
-    fn tag_dont(s: &str) -> IResult<&str, Op> {
-        tag("don't()")(s).map(|(rst, _)| (rst, Op::Do(false)))
-    }
-    fn nop(s: &str) -> IResult<&str, Op> {
-        take(1_usize)(s).map(|(rst, _)| (rst, Op::Nop))
-    }
-    fn mul(s: &str) -> IResult<&str, Op> {
+    fn parse_mul(s: &str) -> IResult<&str, Op> {
         let (s, _) = tag("mul")(s)?;
         let (s, (d1, d2)) = delimited(tag("("), separated_pair(digit1, tag(","), digit1), tag(")"))(s)?;
         Ok((s, Op::Add(d1.parse::<isize>().unwrap() * d2.parse::<isize>().unwrap())))
     }
+    fn parse(s: &str) -> IResult<&str, Op> {
+        alt((
+            tag("do()").map(|_| Op::Do(true)),
+            tag("don't()").map(|_| Op::Do(false)),
+            parse_mul,
+            take(1_usize).map(|_| Op::Nop),
+        ))(s)
+    }
     let (mut res, mut ok) = (0, true);
     while !s.is_empty() {
-        match alt((tag_do, tag_dont, mul, nop))(s) {
+        match parse(s) {
             Ok((rst, op)) => {
                 match op {
                     Op::Do(v) => ok = pt1 || v,
