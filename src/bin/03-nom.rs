@@ -3,10 +3,9 @@ use nom::{
     IResult, Parser,
     branch::alt,
     bytes::complete::{tag, take},
-    character::complete::digit1,
+    character::complete::i64 as ci64,
     sequence::{delimited, separated_pair},
 };
-use std::isize;
 
 fn main() {
     let in1 = include_str!("../../data/03/in1");
@@ -17,15 +16,15 @@ fn main() {
 #[derive(Debug)]
 enum Op {
     Do(bool),
-    Add(isize),
+    Add(i64),
     Nop,
 }
 
-fn eval_nom(mut s: &str, pt1: bool) -> isize {
+fn eval_nom(mut s: &str, pt1: bool) -> i64 {
     fn parse_mul(s: &str) -> IResult<&str, Op> {
         let (s, _) = tag("mul")(s)?;
-        let (s, (d1, d2)) = delimited(tag("("), separated_pair(digit1, tag(","), digit1), tag(")"))(s)?;
-        Ok((s, Op::Add(d1.parse::<isize>().unwrap() * d2.parse::<isize>().unwrap())))
+        let (s, (d1, d2)) = delimited(tag("("), separated_pair(ci64, tag(","), ci64), tag(")"))(s)?;
+        Ok((s, Op::Add(d1 * d2)))
     }
     fn parse(s: &str) -> IResult<&str, Op> {
         alt((
