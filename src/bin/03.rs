@@ -14,9 +14,7 @@ enum Op {
 
 fn eval(s: &str, pt1: bool) -> isize {
     let re = {
-        let dos = (!pt1)
-            .then_some(r#"do\(\)|don't\(\)|"#)
-            .unwrap_or("");
+        let dos = if !pt1 { r#"do\(\)|don't\(\)|"# } else { "" };
         let mul = r#"mul\([0-9]{1,3},[0-9]{1,3}\)"#;
         Regex::new(&format!("{dos}{mul}")).unwrap()
     };

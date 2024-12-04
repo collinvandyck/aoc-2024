@@ -7,8 +7,7 @@ fn is_safe(s: &str, pt1: bool) -> usize {
     s.trim()
         .lines()
         .map(|line| {
-            line.trim()
-                .split_whitespace()
+            line.split_whitespace()
                 .map(|n| n.parse::<i64>().unwrap())
                 .collect::<Vec<_>>()
         })
@@ -18,7 +17,7 @@ fn is_safe(s: &str, pt1: bool) -> usize {
                     || (0..line.len()).any(|i| {
                         let s1 = &line[0..i];
                         let s2 = &line[i + 1..];
-                        is_valid(s1.into_iter().chain(s2))
+                        is_valid(s1.iter().chain(s2))
                     })
             })
         })
