@@ -7,11 +7,77 @@ use std::collections::{HashMap, HashSet};
 fn main() {
     let in1 = include_str!("../../data/06/in1");
     println!("pt1: {}", aoc::timed(|| eval(in1, true)));
-    println!("pt2: {}", aoc::timed(|| eval(in1, false)));
 }
 
 fn eval(s: &str, pt1: bool) -> usize {
-    todo!("eval")
+    let mut grid = Grid::from_str(s);
+    grid.unique()
+}
+
+struct Grid {
+    tiles: Vec<Vec<Tile>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct Tile(usize, usize, char);
+
+const DIRS: [char; 4] = ['U', 'R', 'D', 'L'];
+
+impl Grid {
+    fn unique(&mut self) -> usize {
+        let mut cur = self.find('^').unwrap();
+        let mut visited = HashSet::from([cur]);
+        let mut dir = DIRS.iter().position(|&c| c == 'U').unwrap();
+        loop {
+            let next = self.tile_for_dir(cur, dir);
+            match next {
+                Some(Tile(_, _, '#')) => dir = (dir + 1) % DIRS.len(),
+                Some(tile) => {
+                    cur = tile;
+                    visited.insert(tile);
+                }
+                None => break,
+            }
+        }
+        visited.len()
+    }
+    fn find(&self, ch: char) -> Option<Tile> {
+        self.flatten().find(|t| t.2 == ch)
+    }
+    fn flatten(&self) -> impl Iterator<Item = Tile> + '_ {
+        self.tiles.iter().flatten().copied()
+    }
+    fn tile_for_dir(&self, tile: Tile, dir: usize) -> Option<Tile> {
+        let (rows, cols) = self.rows_cols();
+        let (r, c) = match DIRS[dir] {
+            'U' => (tile.0.checked_sub(1), Some(tile.1)),
+            'D' => ((tile.0 < rows - 1).then_some(tile.0 + 1), Some(tile.1)),
+            'L' => (Some(tile.0), tile.1.checked_sub(1)),
+            'R' => (Some(tile.0), ((tile.1 < cols - 1).then_some(tile.1 + 1))),
+            _ => unreachable!(),
+        };
+        r.and_then(|r| c.and_then(|c| self.get(r, c)))
+    }
+    fn get(&self, r: usize, c: usize) -> Option<Tile> {
+        self.tiles.get(r).and_then(|r| r.get(c)).copied()
+    }
+    fn rows_cols(&self) -> (usize, usize) {
+        (self.tiles.len(), self.tiles[0].len())
+    }
+    fn from_str(s: &str) -> Self {
+        let tiles = s
+            .trim()
+            .lines()
+            .enumerate()
+            .map(|(row, l)| {
+                l.chars()
+                    .enumerate()
+                    .map(|(col, ch)| Tile(row, col, ch))
+                    .collect()
+            })
+            .collect();
+        Self { tiles }
+    }
 }
 
 #[cfg(test)]
@@ -21,6 +87,6 @@ mod tests {
     #[test]
     fn ex01() {
         let s = include_str!("../../data/06/ex1");
-        assert_eq!(eval(s, true), 143);
+        assert_eq!(eval(s, true), 41);
     }
 }
