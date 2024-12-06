@@ -99,9 +99,9 @@ mod tests {
         assert_eq!(eval(s, true), 41);
     }
 
-    //#[test]
-    //fn ex02() {
-    //let s = include_str!("../../data/06/ex1");
-    //assert_eq!(eval(s, false), 6);
-    //}
+    #[test]
+    fn ex02() {
+        let s = include_str!("../../data/06/ex1");
+        assert_eq!(eval(s, false), 6);
+    }
 }
