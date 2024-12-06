@@ -42,7 +42,7 @@ impl Grid {
                 None => break,
             }
         }
-        vis.len()
+        pt1.then_some(vis.len()).unwrap_or(0)
     }
     fn find(&self, ch: char) -> Option<Tile> {
         self.flatten().find(|t| t.2 == ch)
