@@ -11,7 +11,7 @@ fn main() {
 
 fn eval(s: &str, pt1: bool) -> usize {
     let mut grid = Grid::from_str(s);
-    grid.unique()
+    grid.unique(pt1)
 }
 
 struct Grid {
@@ -27,7 +27,7 @@ struct TileDir(Tile, usize);
 const DIRS: [char; 4] = ['U', 'R', 'D', 'L'];
 
 impl Grid {
-    fn unique(&mut self) -> usize {
+    fn unique(&mut self, pt1: bool) -> usize {
         let mut cur = self.find('^').unwrap();
         let mut dir = DIRS.iter().position(|&c| c == 'U').unwrap();
         let mut vis = HashMap::from([(cur, TileDir(cur, dir))]);
