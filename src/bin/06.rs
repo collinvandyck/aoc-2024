@@ -21,25 +21,28 @@ struct Grid {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct Tile(usize, usize, char);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct TileDir(Tile, usize);
+
 const DIRS: [char; 4] = ['U', 'R', 'D', 'L'];
 
 impl Grid {
     fn unique(&mut self) -> usize {
         let mut cur = self.find('^').unwrap();
-        let mut visited = HashSet::from([cur]);
         let mut dir = DIRS.iter().position(|&c| c == 'U').unwrap();
+        let mut vis = HashMap::from([(cur, TileDir(cur, dir))]);
         loop {
             let next = self.tile_for_dir(cur, dir);
             match next {
                 Some(Tile(_, _, '#')) => dir = (dir + 1) % DIRS.len(),
                 Some(tile) => {
                     cur = tile;
-                    visited.insert(tile);
+                    vis.insert(tile, TileDir(tile, dir));
                 }
                 None => break,
             }
         }
-        visited.len()
+        vis.len()
     }
     fn find(&self, ch: char) -> Option<Tile> {
         self.flatten().find(|t| t.2 == ch)
@@ -85,8 +88,20 @@ mod tests {
     use super::*;
 
     #[test]
+    fn pt1() {
+        let s = include_str!("../../data/06/in1");
+        assert_eq!(eval(s, true), 5564);
+    }
+
+    #[test]
     fn ex01() {
         let s = include_str!("../../data/06/ex1");
         assert_eq!(eval(s, true), 41);
     }
+
+    //#[test]
+    //fn ex02() {
+    //let s = include_str!("../../data/06/ex1");
+    //assert_eq!(eval(s, false), 6);
+    //}
 }
