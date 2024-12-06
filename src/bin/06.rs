@@ -31,18 +31,25 @@ impl Grid {
         let mut cur = self.find('^').unwrap();
         let mut dir = DIRS.iter().position(|&c| c == 'U').unwrap();
         let mut vis = HashMap::from([(cur, TileDir(cur, dir))]);
+        let mut obs = 0;
         loop {
             let next = self.tile_for_dir(cur, dir);
             match next {
                 Some(Tile(_, _, '#')) => dir = (dir + 1) % DIRS.len(),
                 Some(tile) => {
+                    // this is not an obstruction. but if it were, does turning
+                    // in the new direction end up on a tile that we have
+                    // already visited going in the same direction?
+                    if !pt1 {
+                        obs += 1;
+                    }
                     cur = tile;
                     vis.insert(tile, TileDir(tile, dir));
                 }
                 None => break,
             }
         }
-        pt1.then_some(vis.len()).unwrap_or(0)
+        pt1.then_some(vis.len()).unwrap_or(obs)
     }
     fn find(&self, ch: char) -> Option<Tile> {
         self.flatten().find(|t| t.2 == ch)
