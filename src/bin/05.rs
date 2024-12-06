@@ -62,8 +62,7 @@ impl Tracker {
     fn sort(&self, mut page: Vec<usize>) -> Vec<usize> {
         for _ in 0..page.len() - 1 {
             for j in 0..page.len() - 1 {
-                let val = page[j];
-                let oth = page[j + 1];
+                let (val, oth) = (page[j], page[j + 1]);
                 if self.has_before(&page, val, oth) {
                     page[j] = oth;
                     page[j + 1] = val;
