@@ -36,15 +36,46 @@ impl Grid {
             let next = self.tile_for_dir(cur, dir);
             match next {
                 Some(Tile(_, _, '#')) => dir = (dir + 1) % DIRS.len(),
-                Some(tile) => {
+                Some(next) => {
                     // this is not an obstruction. but if it were, does turning
                     // in the new direction end up on a tile that we have
                     // already visited going in the same direction?
+                    //
+                    // ....#.....
+                    // ....+---+#
+                    // ....|...|.
+                    // ..#.|...|.
+                    // ....|..#|.
+                    // ....|...|.
+                    // .#.O^---+.
+                    // ........#.
+                    // #.........
+                    // ......#...
+
                     if !pt1 {
-                        obs += 1;
+                        if let Some(other) = self.tile_for_dir(next, dir) {
+                            if other.2 != '#' {
+                                // other is a legitimate tile that is not an obstruction.
+                                // what happens if we place an obstruction here?
+                                let next_dir = (dir + 1) % DIRS.len();
+                                println!(
+                                    "next={next:?} other={other:?} dir={} next_dir={}",
+                                    DIRS[dir], DIRS[next_dir]
+                                );
+                                if let Some(candidate) = self.tile_for_dir(next, next_dir) {
+                                    // check to see if we have been on the candidate tile before
+                                    // and in the same dir
+                                    if let Some(vis) = vis.get(&candidate) {
+                                        let dirs_match = next_dir == vis.1;
+                                        println!("candidate: {candidate:?} vis: {vis:?} match: {dirs_match}");
+                                        obs += 1;
+                                    }
+                                }
+                            }
+                        }
                     }
-                    cur = tile;
-                    vis.insert(tile, TileDir(tile, dir));
+                    cur = next;
+                    vis.insert(next, TileDir(next, dir));
                 }
                 None => break,
             }
