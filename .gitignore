@@ -1,3 +1,5 @@
 /target
 ex*
 in*
+*.svcg
+*.svg
