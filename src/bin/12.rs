@@ -1,7 +1,8 @@
 #![allow(unused)]
 
-#[cfg(test)]
 static EX1: &str = include_str!("../../data/12/ex1");
+static EX2: &str = include_str!("../../data/12/ex2");
+static EX3: &str = include_str!("../../data/12/ex3");
 static IN1: &str = include_str!("../../data/12/in1");
 
 fn main() {
@@ -10,7 +11,7 @@ fn main() {
 }
 
 fn eval(s: &str, pt1: bool) -> usize {
-    0
+    Grid::parse(s).total_price()
 }
 
 #[derive(Default)]
@@ -22,10 +23,13 @@ struct Grid {
 struct Tile {
     row: i32,
     col: i32,
-    val: u32,
+    ch: char,
 }
 
 impl Grid {
+    fn total_price(&self) -> usize {
+        42
+    }
     fn get(&self, r: i32, c: i32) -> Option<Tile> {
         (r >= 0 && c >= 0)
             .then_some((r as usize, c as usize))
@@ -40,9 +44,8 @@ impl Grid {
                 l.chars()
                     .enumerate()
                     .map(|(col, ch)| {
-                        let val = ch.to_digit(10).unwrap();
                         let (row, col) = (row as i32, col as i32);
-                        Tile { row, col, val }
+                        Tile { row, col, ch }
                     })
                     .collect()
             })
@@ -57,6 +60,8 @@ mod tests {
 
     #[test]
     fn exs() {
-        assert_eq!(eval(EX1, true), 55312);
+        assert_eq!(eval(EX1, true), 140);
+        assert_eq!(eval(EX2, true), 772);
+        assert_eq!(eval(EX3, true), 1930);
     }
 }
