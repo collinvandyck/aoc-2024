@@ -27,7 +27,14 @@ struct Problem {
 
 impl Problem {
     fn valid_designs(&self) -> usize {
-        0
+        self.designs
+            .iter()
+            .filter(|c| self.valid_design(c))
+            .count()
+    }
+    fn valid_design(&self, design: &Colors) -> bool {
+        println!("valid_design: {design:?}");
+        false
     }
 }
 
