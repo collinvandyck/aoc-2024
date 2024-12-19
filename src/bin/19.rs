@@ -20,19 +20,6 @@ fn eval(s: &str, pt1: bool) -> usize {
 #[derive(Clone)]
 struct Colors(Vec<u8>);
 
-impl FromIterator<u8> for Colors {
-    fn from_iter<T: IntoIterator<Item = u8>>(iter: T) -> Self {
-        Colors(iter.into_iter().collect())
-    }
-}
-
-impl std::fmt::Debug for Colors {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = std::str::from_utf8(&self.0).unwrap();
-        write!(f, "{s}")
-    }
-}
-
 #[derive(Debug, Clone)]
 struct Problem {
     patterns: Vec<Colors>,
@@ -47,6 +34,18 @@ fn parse(s: &str) -> Problem {
         .collect();
     let designs = p2.lines().map(|s| s.bytes().collect()).collect();
     Problem { patterns, designs }
+}
+
+impl FromIterator<u8> for Colors {
+    fn from_iter<T: IntoIterator<Item = u8>>(iter: T) -> Self {
+        Self(iter.into_iter().collect())
+    }
+}
+
+impl std::fmt::Debug for Colors {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", std::str::from_utf8(&self.0).unwrap())
+    }
 }
 
 #[cfg(test)]
