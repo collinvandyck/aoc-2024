@@ -17,15 +17,15 @@ fn eval(s: &str, pt1: bool) -> usize {
 }
 
 #[derive(Clone)]
-struct Colors(Vec<u8>);
+struct Colors<'a>(&'a [u8]);
 
 #[derive(Debug, Clone)]
-struct Problem {
-    patterns: Vec<Colors>,
-    designs: Vec<Colors>,
+struct Problem<'a> {
+    patterns: Vec<Colors<'a>>,
+    designs: Vec<Colors<'a>>,
 }
 
-impl Problem {
+impl<'a> Problem<'a> {
     fn valid_designs(&self) -> usize {
         self.designs
             .iter()
@@ -38,23 +38,23 @@ impl Problem {
     }
 }
 
+impl<'a> Colors<'a> {
+    fn strip_prefix(&self, other: &Self) -> Option<Self> {
+        self.0.strip_prefix(other.0).map(Colors)
+    }
+}
+
 fn parse(s: &str) -> Problem {
     let (p1, p2) = s.trim().split_once("\n\n").unwrap();
     let patterns = p1
         .split(", ")
-        .map(|s| s.bytes().collect())
+        .map(|s| Colors(s.as_bytes()))
         .collect();
-    let designs = p2.lines().map(|s| s.bytes().collect()).collect();
+    let designs = p2.lines().map(|s| Colors(s.as_bytes())).collect();
     Problem { patterns, designs }
 }
 
-impl FromIterator<u8> for Colors {
-    fn from_iter<T: IntoIterator<Item = u8>>(iter: T) -> Self {
-        Self(iter.into_iter().collect())
-    }
-}
-
-impl std::fmt::Debug for Colors {
+impl<'a> std::fmt::Debug for Colors<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", std::str::from_utf8(&self.0).unwrap())
     }
