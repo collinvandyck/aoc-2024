@@ -8,7 +8,7 @@ mod data {
 
 fn main() {
     println!("pt1: {}", aoc_2024::timed(|| eval(data::IN1, true)));
-    println!("pt2: {}", aoc_2024::timed(|| eval(data::IN1, false)));
+    //println!("pt2: {}", aoc_2024::timed(|| eval(data::IN1, false)));
 }
 
 fn eval(s: &str, pt1: bool) -> usize {
@@ -33,14 +33,24 @@ impl<'a> Problem<'a> {
             .count()
     }
     fn valid_design(&self, design: &Colors) -> bool {
-        println!("valid_design: {design:?}");
-        false
+        if design.is_empty() {
+            return true;
+        }
+        self.patterns.iter().any(|p| {
+            design
+                .strip_prefix(p)
+                .map(|rest| self.valid_design(&rest))
+                .unwrap_or_default()
+        })
     }
 }
 
 impl<'a> Colors<'a> {
     fn strip_prefix(&self, other: &Self) -> Option<Self> {
         self.0.strip_prefix(other.0).map(Colors)
+    }
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }
 
