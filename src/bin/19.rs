@@ -13,8 +13,7 @@ fn main() {
 
 fn eval(s: &str, pt1: bool) -> usize {
     let prob = parse(s);
-    println!("{prob:#?}");
-    todo!("eval")
+    prob.valid_designs()
 }
 
 #[derive(Clone)]
@@ -24,6 +23,12 @@ struct Colors(Vec<u8>);
 struct Problem {
     patterns: Vec<Colors>,
     designs: Vec<Colors>,
+}
+
+impl Problem {
+    fn valid_designs(&self) -> usize {
+        0
+    }
 }
 
 fn parse(s: &str) -> Problem {
@@ -54,6 +59,6 @@ mod tests {
 
     #[test]
     fn ex1() {
-        assert_eq!(eval(data::EX1, true), 10092);
+        assert_eq!(eval(data::EX1, true), 6);
     }
 }
