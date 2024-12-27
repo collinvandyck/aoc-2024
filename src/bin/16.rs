@@ -1,5 +1,8 @@
 use itertools::Itertools;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet, VecDeque},
+};
 use strum::IntoEnumIterator;
 
 #[allow(unused)]
@@ -94,11 +97,13 @@ impl Grid {
                     continue;
                 }
                 let last = bests.last().unwrap();
-                if last.score == trail.score {
-                    bests.push(trail);
-                } else if trail.score < last.score {
-                    bests.clear();
-                    bests.push(trail);
+                match last.score.cmp(&trail.score) {
+                    Ordering::Equal => bests.push(trail),
+                    Ordering::Greater => {
+                        bests.clear();
+                        bests.push(trail);
+                    }
+                    _ => {}
                 }
                 continue;
             }
@@ -109,7 +114,7 @@ impl Grid {
                 if next.ch == '#' {
                     continue;
                 }
-                let score = trail.score + (dir == deer.dir).then_some(1).unwrap_or(1001);
+                let score = trail.score + if dir == deer.dir { 1 } else { 1001 };
                 let new_deer = Deer { pt: next.pt, dir };
 
                 // if we have already been here but with a lower score, abort.

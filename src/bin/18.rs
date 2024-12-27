@@ -15,7 +15,7 @@ fn main() {
 
 fn shortest(s: &str, ex: bool) -> usize {
     let bytes = parse(s);
-    let dim = ex.then_some(7).unwrap_or(71);
+    let dim = if ex { 7 } else { 71 };
     let bytes = bytes
         .into_iter()
         .take(ex.then_some(12).unwrap_or(1024))

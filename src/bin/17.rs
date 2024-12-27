@@ -160,7 +160,7 @@ impl Computer {
         while let Some((opcode, operand)) = self.load() {
             match opcode {
                 0 => self.a = self.div(operand),
-                1 => self.b = self.b ^ operand as i64,
+                1 => self.b ^= operand as i64,
                 2 => self.b = self.combo(operand) & 7,
                 3 => {
                     if self.a != 0 {
@@ -168,7 +168,7 @@ impl Computer {
                         continue;
                     }
                 }
-                4 => self.b = self.b ^ self.c,
+                4 => self.b ^= self.c,
                 5 => self.print(self.combo(operand) & 7),
                 6 => self.b = self.div(operand),
                 7 => self.c = self.div(operand),
@@ -180,7 +180,7 @@ impl Computer {
     fn div(&self, operand: Word) -> i64 {
         let n = self.a;
         let d = self.combo(operand);
-        let d = (2 as f64).powi(d as i32) as i64;
+        let d = 2_f64.powi(d as i32) as i64;
         n / d
     }
     fn print(&mut self, val: i64) {
