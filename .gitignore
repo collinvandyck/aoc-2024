@@ -4,3 +4,4 @@ in*
 *.svcg
 *.svg
 perf.data*
+_build
