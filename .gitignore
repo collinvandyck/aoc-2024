@@ -5,3 +5,4 @@ in*
 *.svg
 perf.data*
 _build
+/out
