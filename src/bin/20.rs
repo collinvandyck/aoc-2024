@@ -1,10 +1,14 @@
 #![allow(unused)]
 
-use fnv::FnvHashMap;
-use hashbrown::{DefaultHashBuilder, HashMap, HashSet};
-use itertools::{Itertools, iproduct};
-use priority_queue::PriorityQueue;
-use std::{self, cmp::Reverse, collections::VecDeque, hash::RandomState, ops::Add, time::Instant, usize};
+use bitvec::{order::Msb0, slice::BitSlice, vec::BitVec};
+use itertools::Itertools;
+use std::{
+    collections::{HashMap, HashSet, VecDeque},
+    hash::RandomState,
+    ops::Add,
+    time::Instant,
+    vec,
+};
 
 #[allow(unused)]
 mod data {
@@ -13,276 +17,246 @@ mod data {
 }
 
 fn main() {
-    println!("pt1: {}", aoc_2024::timed(|| eval(data::IN1, true, false)));
-    //println!("pt2: {}", aoc_2024::timed(|| eval(data::IN1, false)));
+    println!(
+        "pt1: {}",
+        aoc_2024::timed(|| num_cheats_saving_at_least(data::IN1, 100))
+    );
 }
 
-fn eval(s: &str, pt1: bool, ex: bool) -> usize {
-    let grid = parse(s);
-    let cheats = grid.cheats();
-    cheats
-        .iter()
-        .filter(|c| c.savings >= if ex { 12 } else { 100 })
-        .count()
+fn num_cheats_saving_at_least(s: &str, threshold: usize) -> usize {
+    let mut grid = Grid::parse(s);
+    let state = shortest_path(&grid);
+    let mut savings = HashMap::<Pt, usize>::new();
+    for (idx, &path_tile) in state.tiles.iter().enumerate() {
+        let mut nexts = NEXTS
+            .into_iter()
+            .filter_map(|pt| grid.next(path_tile, pt))
+            .filter(|t| t.is_wall())
+            .flat_map(|first| {
+                NEXTS
+                    .into_iter()
+                    .filter_map(|pt| {
+                        grid.next(first, pt)
+                            .filter(|t| !t.is_wall())
+                            .map(|second| (first, second))
+                    })
+                    .collect_vec()
+                    .into_iter()
+            })
+            .fold(HashSet::<Tile>::new(), |mut acc, (first, _)| {
+                acc.insert(first);
+                acc
+            });
+        for next in nexts {
+            if savings.contains_key(&next.pt) {
+                continue;
+            }
+            let prev = grid.set(next.pt, b'.');
+            let test = shortest_path(&grid);
+            let diff = test.tiles.len().abs_diff(state.tiles.len());
+            savings.insert(next.pt, diff);
+            grid.set(prev.pt, prev.ch);
+        }
+    }
+    savings
+        .values()
+        .fold(HashMap::<usize, usize>::new(), |mut acc, v| {
+            *acc.entry(*v).or_default() += 1;
+            acc
+        })
+        .into_iter()
+        .filter_map(|(savings, count)| (savings >= threshold).then_some(count))
+        .sum()
 }
-
-static DIRS: [(i32, i32); 4] = [(0, 1), (0, -1), (1, 0), (-1, 0)];
 
 #[derive(Clone)]
 struct Grid {
-    tiles: Vec<Vec<Tile>>,
+    dim: i16,
+    tiles: Vec<Tile>,
+    start: Tile,
 }
 
-#[derive(Default)]
-struct Costs(Option<(Vec<Tile>, HashMap<Tile, Vec<Tile>>)>);
+static NEXTS: [Pt; 4] = [Pt(0, 1), Pt(1, 0), Pt(0, -1), Pt(-1, 0)];
 
-impl Costs {
-    fn best(&self) -> Option<usize> {
-        self.0.as_ref().map(|(ts, _)| ts.len())
+#[derive(Clone, Default)]
+struct State {
+    dim: usize,
+    tiles: Vec<Tile>,
+    visited: Vec<bool>,
+}
+impl State {
+    fn new(dim: usize) -> Self {
+        Self {
+            dim,
+            tiles: Vec::with_capacity(dim * 2),
+            visited: vec![false; (dim * dim)],
+        }
     }
+    fn push(&mut self, tile: Tile) {
+        self.tiles.push(tile);
+        let idx = tile.pt.idx(self.dim);
+        self.visited[idx] = true;
+    }
+    fn has_visited(&self, pt: Pt) -> bool {
+        let idx = pt.idx(self.dim);
+        self.visited[idx]
+    }
+}
+
+fn shortest_path(grid: &Grid) -> State {
+    let epoch = Instant::now();
+    let f = bitvec::bits![u16, bitvec::order::Msb0; 0; 32];
+    let cur = grid.start;
+    let mut state = State::new(grid.dim as usize);
+    state.push(cur);
+    let mut queue = VecDeque::from([state]);
+    let mut best = State::default();
+    let mut best_cost = usize::MAX;
+    while !queue.is_empty() {
+        let mut state = queue.pop_front().unwrap();
+        let cur = state.tiles.last().copied().unwrap();
+        if best_cost < state.tiles.len() {
+            continue;
+        }
+        if cur.is_end() {
+            best_cost = state.tiles.len();
+            best = state;
+            continue;
+        }
+        let mut nexts = NEXTS
+            .into_iter()
+            .filter_map(|pt| grid.next(cur, pt))
+            .filter(|t| !t.is_wall() && !state.has_visited(t.pt));
+        if let Some(next) = nexts.next() {
+            for next in nexts {
+                let mut state = state.clone();
+                state.push(next);
+                queue.push_front(state);
+            }
+            state.push(next);
+            queue.push_front(state);
+        }
+    }
+    //println!("state: {} {:?}", best.tiles.len(), epoch.elapsed());
+    best
 }
 
 impl Grid {
-    fn cheats(&self) -> Vec<Cheat> {
-        let start = Instant::now();
-        let path: Vec<Tile> = self.bfs(&Costs::default());
-        let costs = Costs(Some((
-            path.clone(),
-            (0..path.len() - 1)
-                .map(|i| (path[i], (&path[i..]).to_vec()))
-                .collect(),
-        )));
-        println!("bfs: {:?} {}", start.elapsed(), path.len());
-        Vec::default()
-    }
-    fn bfs(&self, costs: &Costs) -> Vec<Tile> {
-        let epoch = Instant::now();
-        struct Path(Vec<Tile>, HashSet<Tile>);
-        let start = self.start();
-        let start = Path(vec![start], HashSet::from([start]));
-        let mut paths = VecDeque::from([start]);
-        let mut best = Option::<Vec<Tile>>::None;
-        while !paths.is_empty() {
-            for pidx in 0..paths.len() {
-                let Path(mut tiles, mut cache) = paths.pop_front().unwrap();
-                let cost = tiles.len();
-                let cur = tiles.last().unwrap();
-                if cur.is_end() {
-                    best = match best {
-                        Some(b) if b.len() < tiles.len() => Some(b),
-                        _ => Some(tiles),
-                    };
-                    continue;
-                }
-                // discard if our cost is already over a recorded local best
-                if matches!(&best, Some(b) if b.len() <= cost) {
-                    continue;
-                }
-                // discard if our cost is already over a previous recorded best
-                if costs.best().map(|b| b <= cost).unwrap_or(false) {
-                    continue;
-                }
-                // what if we encounter a node our Costs has already encountered
-
-                // find the next paths
-                let mut nexts = DIRS
-                    .into_iter()
-                    .flat_map(|d| self.next(*cur, d))
-                    .filter(|t| !t.is_wall() && !cache.contains(t))
-                    .collect_vec();
-                if let [xs @ .., x] = nexts.as_slice() {
-                    if xs.len() > 0 {
-                        println!("cloning for {}", xs.len());
-                        for x in xs {
-                            let mut tiles = tiles.clone();
-                            let mut cache = cache.clone();
-                            tiles.push(*x);
-                            cache.insert(*x);
-                            paths.push_back(Path(tiles, cache));
-                        }
-                    }
-                    tiles.push(*x);
-                    cache.insert(*x);
-                    paths.push_back(Path(tiles, cache));
-                }
-            }
-        }
-        best.or_else(|| costs.0.as_ref().map(|(ts, _)| ts.clone()))
+    fn find(&self, ch: u8) -> Tile {
+        self.tiles
+            .iter()
+            .find(|t| t.ch == ch)
+            .copied()
             .unwrap()
     }
-    fn dijkstra(&self) -> Vec<Tile> {
-        type Queue = PriorityQueue<Tile, Reverse<usize>, hashbrown::DefaultHashBuilder>;
-        let epoch = Instant::now();
-        let dim = self.tiles.len() * self.tiles[0].len();
-        let mut queue = Queue::with_capacity_and_default_hasher(dim);
-        let mut prev = FnvHashMap::<Tile, Tile>::with_capacity_and_hasher(dim, Default::default());
-        let mut dist = FnvHashMap::<Tile, usize>::with_capacity_and_hasher(dim, Default::default());
-        let start = self.start();
-        self.tiles()
-            .filter(|t| !t.is_wall())
-            .for_each(|tile| {
-                if tile == start {
-                    dist.insert(tile, 0);
-                    queue.push(tile, Reverse(0));
-                } else {
-                    queue.push(tile, Reverse(usize::MAX));
-                    dist.insert(tile, usize::MAX);
-                }
-            });
-        let epoch = Instant::now();
-        let mut best = Option::<usize>::None;
-        while let Some((u, Reverse(cost))) = queue.pop() {
-            if u.is_end() {
-                if best.is_none() || best.unwrap_or_default() > cost {
-                    best.replace(cost);
-                }
-                continue;
-            }
-            if matches!(best, Some(c) if c <= cost) {
-                continue;
-            }
-            for dir in DIRS {
-                let &u_dist = dist.get(&u).unwrap();
-                if let Some(v) = self.next(u, dir).filter(|t| !t.is_wall()) {
-                    let &v_dist = dist.get(&v).unwrap();
-                    let alt = u_dist + 1;
-                    if alt < v_dist {
-                        prev.insert(v, u);
-                        dist.insert(v, alt);
-                        queue.change_priority(&v, Reverse(alt));
-                    }
-                }
-            }
+    #[inline(always)]
+    fn next(&self, tile: Tile, dir: Pt) -> Option<Tile> {
+        let pt = tile.pt + dir;
+        self.get(pt)
+    }
+    #[inline(always)]
+    fn get(&self, pt: Pt) -> Option<Tile> {
+        let Pt(row, col) = pt;
+        if row >= 0 && col >= 0 && row < self.dim && col < self.dim {
+            let (row, col) = (row as usize, col as usize);
+            let idx = row * self.dim as usize + col;
+            self.tiles.get(idx).copied()
+        } else {
+            None
         }
-        let end = self.tiles().find(|t| t.is_end()).unwrap();
-        let mut tiles = vec![end];
-        tiles.push(end);
-        loop {
-            let last = tiles.last().unwrap();
-            let Some(&prev) = prev.get(last) else {
-                break;
-            };
-            tiles.push(prev);
-        }
-        tiles.reverse();
-        tiles
     }
-
-    fn next(&self, tile: Tile, dlt: (i32, i32)) -> Option<Tile> {
-        self.get_pt(tile.pt + dlt)
+    #[inline(always)]
+    fn idx(&self, pt: Pt) -> usize {
+        pt.idx(self.dim as usize)
     }
-    fn start(&self) -> Tile {
-        self.tiles().find(Tile::is_start).unwrap()
+    #[inline(always)]
+    fn set(&mut self, pt: Pt, ch: u8) -> Tile {
+        let idx = self.idx(pt);
+        let prev = self.tiles[idx];
+        self.tiles[idx] = Tile { pt, ch };
+        prev
     }
-    fn tiles(&self) -> impl Iterator<Item = Tile> + '_ {
-        self.tiles.iter().flatten().copied()
-    }
-    fn get_pt(&self, pt: Pt) -> Option<Tile> {
-        self.get(pt.0, pt.1)
-    }
-    fn get(&self, r: i32, c: i32) -> Option<Tile> {
-        (r >= 0 && c >= 0)
-            .then(|| {
-                let row = self.tiles.get(r as usize);
-                row.and_then(|row| row.get(c as usize).copied())
+    fn parse(s: &str) -> Grid {
+        let mut start: Option<Tile> = None;
+        let tiles: Vec<Vec<Tile>> = s
+            .trim()
+            .lines()
+            .enumerate()
+            .map(|(row, line)| {
+                line.trim()
+                    .as_bytes()
+                    .iter()
+                    .enumerate()
+                    .map(|(col, &ch)| {
+                        let t = Tile {
+                            pt: Pt(row as i16, col as i16),
+                            ch,
+                        };
+                        if ch == b'S' {
+                            start.replace(t);
+                        }
+                        t
+                    })
+                    .collect()
             })
-            .flatten()
-    }
-    fn print(&self, path: &[Tile]) {
-        for r in &self.tiles {
-            for tile in r.iter() {
-                if path.contains(tile) {
-                    print!("x");
-                } else {
-                    print!("{}", tile.ch)
-                }
-            }
-            println!();
+            .collect();
+        assert_eq!(tiles.len(), tiles[0].len());
+        let dim = tiles.len() as i16;
+        let tiles = tiles.into_iter().flatten().collect();
+        Grid {
+            dim,
+            tiles,
+            start: start.unwrap(),
         }
-        println!();
     }
 }
 
-struct Cheat {
-    path: Path,
-    start: Pt,
-    end: Pt,
-    savings: usize,
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+struct Tile {
+    pt: Pt,
+    ch: u8,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
-struct Path(Vec<Tile>);
-
-impl Path {
-    fn push(&mut self, tile: Tile) {
-        self.0.push(tile);
+impl Tile {
+    #[inline(always)]
+    fn is_wall(&self) -> bool {
+        self.ch == b'#'
     }
-    fn tiles(&self) -> &[Tile] {
-        &self.0
-    }
-    fn cost(&self) -> usize {
-        self.0.len() - 1
+    #[inline(always)]
+    fn is_end(&self) -> bool {
+        self.ch == b'E'
     }
 }
 
-impl Path {
-    fn new<'a>(stack: impl IntoIterator<Item = &'a Tile>) -> Self {
-        Self(stack.into_iter().copied().collect())
+impl std::fmt::Debug for Tile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let ch: char = self.ch.into();
+        write!(f, "{} ({},{})", ch, self.pt.0, self.pt.1)
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct Pt(i32, i32);
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Pt(i16, i16);
 
-impl std::ops::Add<(i32, i32)> for Pt {
-    type Output = Pt;
-    fn add(self, rhs: (i32, i32)) -> Self::Output {
-        Self(self.0 + rhs.0, self.1 + rhs.1)
+impl Pt {
+    #[inline(always)]
+    fn idx(&self, dim: usize) -> usize {
+        self.0 as usize * dim + self.1 as usize
+    }
+}
+
+impl std::hash::Hash for Pt {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let v = ((self.0 as i32) << 16) | (self.1 as i32 & 0xFFFF);
+        state.write_i32(v);
     }
 }
 
 impl std::ops::Add for Pt {
-    type Output = Pt;
+    type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
         Self(self.0 + rhs.0, self.1 + rhs.1)
     }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
-struct Tile {
-    pt: Pt,
-    ch: char,
-}
-
-impl Tile {
-    fn is_start(&self) -> bool {
-        self.ch == 'S'
-    }
-    fn is_end(&self) -> bool {
-        self.ch == 'E'
-    }
-    fn is_wall(&self) -> bool {
-        self.ch == '#'
-    }
-}
-
-fn parse(s: &str) -> Grid {
-    let tiles = s
-        .trim()
-        .lines()
-        .enumerate()
-        .map(|(row, line)| {
-            line.trim()
-                .chars()
-                .enumerate()
-                .map(|(col, ch)| Tile {
-                    pt: Pt(row as i32, col as i32),
-                    ch,
-                })
-                .collect()
-        })
-        .collect();
-    Grid { tiles }
 }
 
 #[cfg(test)]
@@ -290,15 +264,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_speeds() {
-        // find the number of cheats that save at least 12 picoseconds
-        assert_eq!(eval(data::EX1, true, true), 8);
-        //   assert_eq!(eval(data::EX1, true, true), 42);
+    fn test_path_ex1() {
+        let cheats = num_cheats_saving_at_least(data::EX1, 20);
+        assert_eq!(cheats, 5);
     }
-
-    //#[test]
-    //fn ex1() {
-    // find the number of cheats that save at least 12 picoseconds
-    //assert_eq!(eval(data::EX1, true, true), 8);
-    //}
 }

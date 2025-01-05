@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.93"
+bitvec = "1.0.1"
 fnv = "1.0.7"
 hashbrown = "0.15.2"
 itertools = "0.13.0"
@@ -22,7 +23,7 @@ tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 
 [profile.release]
-lto = true
+lto = false
 debug = false
 opt-level = 3
 
@@ -33,4 +34,4 @@ opt-level = 1
 [profile.dev]
 lto = false
 debug = true
-opt-level = 3
+opt-level = 0
