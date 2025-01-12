@@ -47,6 +47,7 @@ tasks {
         }
     }
     registerProfileDay("09")
+    registerProfileDay("10")
 }
 
 tasks {
@@ -62,5 +63,11 @@ tasks {
         description = "Runs Day 9"
         classpath = sourceSets["main"].runtimeClasspath
         mainClass.set("day09.Day09Kt")
+    }
+    register<JavaExec>("day10") {
+        group = "advent"
+        description = "Runs Day 10"
+        classpath = sourceSets["main"].runtimeClasspath
+        mainClass.set("day10.Day10Kt")
     }
 }
