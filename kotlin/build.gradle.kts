@@ -21,7 +21,13 @@ val profilerLib = "./profiler/async-profiler/lib/libasyncProfiler.dylib"
 val profilerOut = "./profiler/profiles"
 
 tasks {
-    fun registerProfileDay(day: String) {
+    fun registerDay(day: String) {
+        register<JavaExec>("day${day}") {
+            group = "advent"
+            description = "Runs Day $day"
+            classpath = sourceSets["main"].runtimeClasspath
+            mainClass.set("day${day}.Day${day}Kt")  // Kotlin converts Day01.kt to Day01Kt
+        }
         register<JavaExec>("day${day}ProfileJfr") {
             group = "advent"
             description = "Profile Day $day JFR"
@@ -46,28 +52,7 @@ tasks {
             }
         }
     }
-    registerProfileDay("09")
-    registerProfileDay("10")
-}
-
-tasks {
-    register<JavaExec>("day01") {
-        group = "advent"
-        description = "Runs Day 1"
-        classpath = sourceSets["main"].runtimeClasspath
-        mainClass.set("day01.Day01Kt")  // Kotlin converts Day01.kt to Day01Kt
-    }
-
-    register<JavaExec>("day09") {
-        group = "advent"
-        description = "Runs Day 9"
-        classpath = sourceSets["main"].runtimeClasspath
-        mainClass.set("day09.Day09Kt")
-    }
-    register<JavaExec>("day10") {
-        group = "advent"
-        description = "Runs Day 10"
-        classpath = sourceSets["main"].runtimeClasspath
-        mainClass.set("day10.Day10Kt")
-    }
+    registerDay("09")
+    registerDay("10")
+    registerDay("11")
 }
