@@ -55,4 +55,5 @@ tasks {
     registerDay("09")
     registerDay("10")
     registerDay("11")
+    registerDay("12")
 }
