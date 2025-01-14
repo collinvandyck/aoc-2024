@@ -52,8 +52,7 @@ tasks {
             }
         }
     }
-    registerDay("09")
-    registerDay("10")
-    registerDay("11")
-    registerDay("12")
+    (1..20).forEach { day ->
+        registerDay("%02d".format(day))
+    }
 }
