@@ -1,139 +1,137 @@
-package day15
+package day16
 
 import utils.readFixture
 import utils.timed
 
 fun main() {
-    val in1 = readFixture("15/in1")
+    val in1 = readFixture("16/in1")
     repeat(1) {
         println("pt1: ${timed { pt1(in1) }}")
         println("pt2: ${timed { pt2(in1) }}")
     }
 }
 
-fun pt1(s: String) = run(s)
+fun pt1(s: String) = Grid(s).fastestPath().first().cost
 
-fun pt2(s: String) = run(s, wide = true)
-
-fun run(s: String, wide: Boolean = false) = parse(s, wide).let { (grid, moves) ->
-    moves.forEach { grid.move(it) }
-    grid.gpsSum()
-}
+fun pt2(s: String) = Grid(s).fastestPath()
+    .flatMap { it.tiles }
+    .map { it.pt }
+    .toSet().size
 
 data class Point(val row: Int, val col: Int) {
-    operator fun plus(dir: Dir) = this + dir.dlt
-    operator fun plus(point: Point) = Point(row + point.row, col + point.col)
-    override fun toString(): String = "($row,$col)"
+    operator fun plus(dir: Dir) = Point(row + dir.delta.row, col + dir.delta.col)
+    override fun toString() = "($row,$col)"
 }
 
-data class Tile(val pt: Point, var ch: Char) {
-    fun isBox() = ch in "[]O"
-    fun isWall() = ch == '#'
-
-    fun gpsCoord() = when (ch) {
-        '[', 'O' -> 100 * pt.row + pt.col
-        else -> 0
-    }
-
-    operator fun plus(dir: Dir) = this.copy(pt = pt + dir)
-    override fun toString(): String = "$pt:$ch"
+data class Tile(val pt: Point, val ch: Char) {
+    val isEnd = ch == 'E'
+    val isWall = ch == '#'
+    override fun toString() = "$pt$ch"
 }
 
-enum class Dir(val dlt: Point, val ch: Char) {
-    Up(Point(-1, 0), '^'),
-    Down(Point(1, 0), 'v'),
-    Left(Point(0, -1), '<'),
-    Right(Point(0, 1), '>');
+enum class Dir(val delta: Point) {
+    Up(Point(-1, 0)), Down(Point(1, 0)), Left(Point(0, -1)), Right(Point(0, 1));
 
-    val isVertical = dlt.row != 0
-    override fun toString() = ch.toString()
-
-    companion object {
-        fun from(ch: Char) = Dir.entries.find { it.ch == ch } ?: error("invalid ch: $ch")
+    fun opposite() = when (this) {
+        Up -> Down
+        Down -> Up
+        Left -> Right
+        Right -> Left
     }
 }
 
-class Grid(val tiles: List<List<Tile>>, var robot: Point) {
-    fun move(dir: Dir) {
-        val tile = this[robot] ?: error("robot not loaded")
-        if (checkMove(tile, dir)) {
-            robot += dir
-        }
+data class TileDir(val tile: Tile, val dir: Dir) {
+    val pt get() = tile.pt
+}
+
+class Trail() : Cloneable {
+    val tiles = mutableListOf<TileDir>()
+    var cost = 0
+
+    constructor(td: TileDir) : this() {
+        tiles.add(td)
     }
 
-    fun checkMove(tile: Tile, dir: Dir): Boolean {
-        return arrayOf(false, true).all { moveTile(tile, dir, it) }
+    constructor(other: Trail) : this() {
+        tiles.addAll(other.tiles)
+        cost = other.cost
     }
 
-    fun moveTile(tile: Tile, dir: Dir, apply: Boolean): Boolean {
-        val next = this[tile.pt + dir] ?: run {
-            return false
-        }
-        if (next.isWall()) return false
-        if (next.isBox()) {
-            if (dir.isVertical && "[]".contains(next.ch)) {
-                val nexts = bigBoxTiles(next)
-                if (!nexts.all { moveTile(it, dir, apply) }) {
-                    return false
+    fun move(td: TileDir, cost: Int) {
+        tiles.add(td)
+        this.cost += cost
+    }
+
+    fun size() = tiles.size
+    fun cur() = tiles.last()
+    fun done() = cur().tile.isEnd
+
+}
+
+class Grid(val tiles: List<List<Tile>>) {
+    constructor(s: String) : this(
+        s.trim().lines()
+            .mapIndexed { row, line ->
+                line.mapIndexed { col, ch ->
+                    Tile(Point(row, col), ch)
                 }
-            } else {
-                if (!moveTile(next, dir, apply)) {
-                    return false
+            }
+    )
+
+    fun fastestPath(): List<Trail> {
+        val costs = mutableMapOf<TileDir, Int>()
+        val bests = mutableListOf<Trail>()
+        val registerCost = fun(td: TileDir, cost: Int): Boolean {
+            val found: Int? = costs[td]
+            return if (found != null && cost > found) false else {
+                if (cost != found) costs[td] = cost
+                true
+            }
+        }
+        val registerBest = fun(trail: Trail) {
+            when {
+                bests.isEmpty() -> bests.add(trail)
+                bests.first().cost == trail.cost -> bests.add(trail)
+                trail.cost < bests.first().cost -> {
+                    bests.clear()
+                    bests.add(trail)
                 }
             }
         }
-        if (apply) {
-            next.ch = tile.ch
-            tile.ch = '.'
+        val trails = ArrayDeque<Trail>().also { it.add(Trail(start())) }
+        while (trails.isNotEmpty()) {
+            val trail = trails.removeFirst()
+            val cur = trail.cur()
+            if (trail.done()) {
+                registerBest(trail)
+                continue
+            }
+            Dir.entries
+                .filter { it != cur.dir.opposite() }
+                .map { dir -> TileDir(this.mustGet(cur.pt + dir), dir) }
+                .filter { !it.tile.isWall }
+                .also { nexts ->
+                    nexts.forEachIndexed { idx, td ->
+                        val cost = if (td.dir == cur.dir) 1 else 1001
+                        if (registerCost(td, cost + trail.cost)) {
+                            val next = if (idx == nexts.lastIndex) trail else Trail(trail)
+                            next.move(td, cost)
+                            trails.add(next)
+                        }
+                    }
+                }
         }
-        return true
+        return bests
     }
 
-    fun bigBoxTiles(tile: Tile): List<Tile> {
-        return when (tile.ch) {
-            '[' -> listOf(tile, this[tile.pt + Dir.Right] ?: error("no right tile"))
-            ']' -> listOf(this[tile.pt + Dir.Left] ?: error("no left tile"), tile)
-            else -> error("invalid tile: $tile")
-        }
-    }
+    fun start() = TileDir(find('S'), Dir.Right)
 
-    fun gpsSum() = tiles.asSequence().flatMap { it.asSequence() }.sumOf { it.gpsCoord() }
+    fun find(ch: Char) = find { it.ch == ch } ?: error("no tile '$ch' found")
+
+    fun find(pred: (Tile) -> Boolean) = tiles.asSequence().flatMap { it.asSequence() }.find(pred)
+
+    fun mustGet(pt: Point) = this[pt] ?: error("no tile at $pt")
 
     operator fun get(pt: Point) = tiles.getOrNull(pt.row)?.getOrNull(pt.col)
 
-    override fun toString() = tiles
-        .joinToString("\n") { ts ->
-            ts.map { it.ch }.joinToString("")
-        }
 }
-
-fun parse(s: String, wide: Boolean = false): Pair<Grid, List<Dir>> =
-    s.trim().split(Regex("""^$""", RegexOption.MULTILINE)).let { (s1, s2) ->
-        val grid = s1
-            .lines()
-            .mapIndexed { row, l ->
-                l.flatMapIndexed { col, ch ->
-                    if (wide) {
-                        val (ch1, ch2) = when (ch) {
-                            '#' -> '#' to '#'
-                            'O' -> '[' to ']'
-                            '.' -> '.' to '.'
-                            '@' -> '@' to '.'
-                            else -> error("invalid ch: $ch")
-                        }
-                        listOf(Tile(Point(row, col * 2), ch1), Tile(Point(row, col * 2 + 1), ch2))
-                    } else {
-                        listOf(Tile(Point(row, col), ch))
-                    }
-                }
-            }.let { tiles ->
-                val robot = tiles.asSequence().flatMap { it.asSequence() }.find { it.ch == '@' } ?: error("no robot")
-                Grid(tiles, robot.pt.copy())
-            }
-        val moves = s2.trim()
-            .lines()
-            .map { l -> l.map { Dir.from(it) } }
-            .flatten()
-        grid to moves
-    }
-
