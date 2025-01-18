@@ -1,5 +1,3 @@
-package benches
-
 import utils.readFixture
 import kotlin.test.Test
 import kotlin.test.assertEquals

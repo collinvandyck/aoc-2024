@@ -1,5 +1,3 @@
-package benches
-
 import day18.Bounds
 import utils.readFixture
 import kotlin.test.Test

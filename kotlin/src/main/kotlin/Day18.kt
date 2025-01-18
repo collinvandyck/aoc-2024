@@ -39,11 +39,7 @@ data class Point(val row: Int, val col: Int) {
         row >= 0 && col >= 0 && row < bounds.rows && col < bounds.cols
 }
 
-class Node(
-    val pt: Point,
-    var cost: Int,
-    var prev: Node? = null,
-) : Comparable<Node> {
+class Node(val pt: Point, var cost: Int, var prev: Node? = null) : Comparable<Node> {
     override fun compareTo(other: Node): Int {
         return cost - other.cost
     }
