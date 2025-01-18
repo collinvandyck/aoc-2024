@@ -39,8 +39,9 @@ val profilerOut = "./profiler/profiles"
 
 tasks {
     fun registerDay(day: String) {
-        register<Test>("test-$day") {
-            group = "tests"
+        /*
+        register<Test>("ttest-$day") {
+            group = "verification"
             description = "Test Day $day"
             classpath = sourceSets["test"].runtimeClasspath
             useJUnitPlatform()
@@ -48,6 +49,7 @@ tasks {
                 includeTestsMatching("*${day}*")
             }
         }
+         */
         register<JavaExec>(day) {
             group = "day"
             description = "Runs Day $day"
