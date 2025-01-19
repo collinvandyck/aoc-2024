@@ -1,94 +1,117 @@
-package day20
+package day21
 
 import utils.readFixture
 import utils.timed
-import kotlin.math.absoluteValue
 
 fun main() {
-    val in1 = readFixture("20/in1")
+    val in1 = readFixture("21/in1")
     repeat(10) {
         println("pt1: ${timed { pt1(in1) }}")
         println("pt2: ${timed { pt2(in1) }}")
     }
 }
 
-fun pt1(s: String, savingsThreshold: Int = 100) = findCheats(s, savingsThreshold, cheatSecs = 2)
+fun pt1(s: String) = Code.parse(s).take(1).sumOf { it.complexity() }
 
-fun pt2(s: String, savingsThreshold: Int = 100) = findCheats(s, savingsThreshold, cheatSecs = 20)
+fun pt2(s: String): Int = TODO()
 
-fun findCheats(s: String, savingsThreshold: Int, cheatSecs: Int) = Grid.parse(s).let { grid ->
-    val path = grid.findPath()
-    var cheats = 0
-    for (idx in 0..<path.lastIndex) {
-        val tile = path[idx]
-        for (tidx in idx + 1..path.lastIndex) {
-            val t = path[tidx]
-            val dist = t.pt.distance(tile.pt)
-            if (dist !in 1..cheatSecs) continue
-            val savings = (tidx - idx) - dist
-            if (savings < savingsThreshold) continue
-            cheats++
-        }
+data class Code(val chars: List<Char>) {
+    fun shortestSequence(): Int {
+        val numKey = NumKey()
+        val paths = numKey.shortestPaths(numKey['A']!!, numKey['5']!!)
+        println("paths:\n${paths.joinToString("\n")}")
+        return 0
     }
-    cheats
+
+    fun complexity() = shortestSequence() * numeric()
+
+    fun numeric() = chars
+        .filter { it.isDigit() }
+        .map { it.digitToInt() }
+        .fold(0) { acc, i -> acc * 10 + i }
+
+    constructor(s: String) : this(s.toList())
+
+    companion object {
+        fun parse(s: String): List<Code> = s.trim()
+            .lines()
+            .map { it.toList() }
+            .map { Code(it) }
+    }
 }
 
-data class Point(val row: Int, val col: Int) {
-    operator fun plus(o: Point) = Point(row + o.row, col + o.col)
+class NumKey : Graph("789\n456\n123\nX0A")
+class DirKey : Graph("X^A\n<v>")
 
-    override fun toString() = "($row,$col)"
+open class Graph(chs: String) {
+    val tiles: List<List<Tile>> = chs.trim().lines()
+        .mapIndexed { row, line ->
+            line.trim().mapIndexed { col, ch ->
+                val pt = Point(row, col)
+                Tile(pt, ch, this)
+            }
+        }
 
-    fun distance(o: Point) = (row - o.row).absoluteValue + (col - o.col).absoluteValue
+    val pos: Tile = tiles.flatten().find { it.ch == 'A' } ?: error("no start")
+    val pathCache = mutableMapOf<Pair<Tile, Tile>, List<List<Tile>>>()
+
+    fun shortestPaths(start: Tile, end: Tile): List<List<Tile>> {
+        return pathCache.getOrPut(start to end, {
+            val res: MutableList<List<Tile>> = mutableListOf()
+            val addBest = fun(list: List<Tile>) {
+                res.firstOrNull()?.also { l -> if (l.size > list.size) res.clear() }
+                when {
+                    res.isEmpty() -> res.add(list)
+                    res[0].size == list.size -> res.add(list)
+                }
+            }
+            val queue = ArrayDeque<MutableList<Tile>>()
+            queue.add(mutableListOf(start))
+            while (queue.isNotEmpty()) {
+                val stack = queue.removeFirst()
+                if ((res.firstOrNull()?.size ?: stack.size) < stack.size) {
+                    continue
+                }
+                val cur = stack.last()
+                if (cur == end) {
+                    addBest(stack)
+                    continue
+                }
+                val dirs = Dir.entries
+                    .mapNotNull { this[cur.pt + it.dlt] }
+                    .filter { !stack.contains(it) }
+                dirs.forEachIndexed { idx, next ->
+                    val ns = if (idx == dirs.lastIndex) stack else stack.toMutableList()
+                    queue.addLast(ns.also { it.add(next) })
+                }
+            }
+            res
+        })
+    }
+
+    fun path(from: Char, to: Char): List<Tile> {
+        TODO()
+    }
+
+    operator fun get(ch: Char): Tile? = tiles.flatten().find { it.ch == ch }
+
+    operator fun get(pt: Point): Tile? =
+        tiles.getOrNull(pt.row)
+            ?.getOrNull(pt.col)
+            ?.let { t -> if (t.ch != 'X') t else null }
+
+    override fun toString() = "tiles: $tiles\npos: $pos"
 }
 
-data class Tile(val pt: Point, val ch: Char) {
+data class Tile(val pt: Point, val ch: Char, val graph: Graph) {
     override fun toString() = "$pt:$ch"
 }
 
-enum class Dir(val dlt: Point) {
-    Up(Point(-1, 0)), Down(Point(1, 0)), Left(Point(0, -1)), Right(Point(0, 1));
+data class Point(val row: Int, val col: Int) {
+    operator fun plus(pt: Point) = Point(row + pt.row, col + pt.col)
+    override fun toString() = "($row,$col)"
 }
 
-class Grid(val tiles: List<Tile>, val rows: Int, val cols: Int) {
-
-    fun findPath(): List<Tile> {
-        val start = mustFind('S')
-        val visited = BooleanArray(rows * cols)
-        val stack = mutableListOf(start)
-        mainWhile@ while (true) {
-            val cur = stack.last()
-            visited[idx(cur)] = true
-            if (cur.ch == 'E') return stack
-            for (dir in Dir.entries) {
-                val nextPt = cur.pt + dir.dlt
-                val next = this[nextPt] ?: continue
-                if (next.ch == '#') continue
-                if (visited[idx(next)]) continue
-                stack.add(next)
-                continue@mainWhile
-            }
-            stack.removeLast()
-            if (stack.last().ch == 'S') return emptyList()
-        }
-    }
-
-    fun idx(tile: Tile) = idx(tile.pt)
-    fun idx(pt: Point) = pt.row * cols + pt.col
-    fun mustFind(ch: Char) = tiles.find { it.ch == ch } ?: error("ch '$ch' not found")
-
-    operator fun get(pt: Point) = tiles.getOrNull(idx(pt))
-
-    companion object {
-        fun parse(s: String): Grid {
-            val tiles = s.trim().lines()
-                .mapIndexed { row, line ->
-                    line.mapIndexed { col, ch ->
-                        Tile(Point(row, col), ch)
-                    }
-                }
-            val rows = tiles.size
-            val cols = tiles[0].size
-            return Grid(tiles.flatten(), rows, cols)
-        }
-    }
+enum class Dir(val dlt: Point) {
+    U(Point(-1, 0)), D(Point(1, 0)), L(Point(0, -1)), R(Point(0, 1));
 }
