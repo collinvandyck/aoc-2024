@@ -18,7 +18,7 @@ fun pt2(s: String): Int = TODO()
 data class Code(val chars: List<Char>) {
     fun shortestSequence(): Int {
         val numKey = NumKey()
-        val paths = numKey.shortestPaths(numKey['A']!!, numKey['5']!!)
+        val paths = numKey.paths(numKey.mustGet('A'), numKey.mustGet('5'), shortest = true)
         println("paths:\n${paths.joinToString("\n")}")
         return 0
     }
@@ -44,6 +44,8 @@ class NumKey : Graph("789\n456\n123\nX0A")
 class DirKey : Graph("X^A\n<v>")
 
 open class Graph(chs: String) {
+    data class Key(val start: Tile, val end: Tile, val shortest: Boolean)
+
     val tiles: List<List<Tile>> = chs.trim().lines()
         .mapIndexed { row, line ->
             line.trim().mapIndexed { col, ch ->
@@ -53,23 +55,27 @@ open class Graph(chs: String) {
         }
 
     val pos: Tile = tiles.flatten().find { it.ch == 'A' } ?: error("no start")
-    val pathCache = mutableMapOf<Pair<Tile, Tile>, List<List<Tile>>>()
+    val pathCache = mutableMapOf<Key, List<List<Tile>>>()
 
-    fun shortestPaths(start: Tile, end: Tile): List<List<Tile>> {
-        return pathCache.getOrPut(start to end, {
-            val res: MutableList<List<Tile>> = mutableListOf()
-            val addBest = fun(list: List<Tile>) {
-                res.firstOrNull()?.also { l -> if (l.size > list.size) res.clear() }
+    fun paths(start: Tile, end: Tile, shortest: Boolean = true): List<List<Tile>> {
+        val paths = pathCache.getOrElse(Key(start, end, shortest), {
+            val paths: MutableList<List<Tile>> = mutableListOf()
+            val addBest = fun(path: List<Tile>) {
+                if (!shortest) {
+                    paths.add(path)
+                    return
+                }
+                paths.firstOrNull()?.also { l -> if (l.size > path.size) paths.clear() }
                 when {
-                    res.isEmpty() -> res.add(list)
-                    res[0].size == list.size -> res.add(list)
+                    paths.isEmpty() -> paths.add(path)
+                    paths[0].size == path.size -> paths.add(path)
                 }
             }
             val queue = ArrayDeque<MutableList<Tile>>()
             queue.add(mutableListOf(start))
             while (queue.isNotEmpty()) {
                 val stack = queue.removeFirst()
-                if ((res.firstOrNull()?.size ?: stack.size) < stack.size) {
+                if (shortest && (paths.firstOrNull()?.size ?: stack.size) < stack.size) {
                     continue
                 }
                 val cur = stack.last()
@@ -85,13 +91,14 @@ open class Graph(chs: String) {
                     queue.addLast(ns.also { it.add(next) })
                 }
             }
-            res
+            pathCache[Key(start, end, shortest)] = paths
+            pathCache[Key(end, start, shortest)] = paths.map { it.reversed() }
+            paths
         })
+        return paths
     }
 
-    fun path(from: Char, to: Char): List<Tile> {
-        TODO()
-    }
+    fun mustGet(ch: Char): Tile = this[ch] ?: error("no tile found for '$ch")
 
     operator fun get(ch: Char): Tile? = tiles.flatten().find { it.ch == ch }
 
